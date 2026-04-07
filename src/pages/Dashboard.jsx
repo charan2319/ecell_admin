@@ -1,21 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import {
-  Package, ShoppingBag, Users, Layout, LogOut, Plus, Edit, Trash2, TrendingUp, Coins, UserCheck, Image as ImageIcon, RefreshCcw
+  Package, ShoppingBag, Users, Layout, LogOut, Plus, Edit, Trash2, TrendingUp, Coins, UserCheck, Image as ImageIcon, RefreshCcw, Calendar, BarChart3, PieChart
 } from 'lucide-react';
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend
+} from 'recharts';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
-function Dashboard() {
-  const [activeTab, setActiveTab] = useState('products');
+function Dashboard({ onLogout }) {
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [products, setProducts] = useState([]);
   const [users, setUsers] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [hero, setHero] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [brands, setBrands] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [aboutImage, setAboutImage] = useState(null);
 
   const [selectedOrder, setSelectedOrder] = useState(null);
 
@@ -41,30 +40,77 @@ function Dashboard() {
   const [file, setFile] = useState(null);
   const [extraImgFiles, setExtraImgFiles] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [timeframe, setTimeframe] = useState('7d'); // '7d', '30d', 'all'
+
+  // Data processing for charts
+  const salesData = useMemo(() => {
+    if (!orders.length) return [];
+    
+    const now = new Date();
+    const dataMap = {};
+    
+    // Initialize last 7 days or 30 days
+    const daysToLookBack = timeframe === '7d' ? 7 : (timeframe === '30d' ? 30 : 90);
+    for (let i = daysToLookBack - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dataMap[dateStr] = { date: dateStr, revenue: 0, orders: 0 };
+    }
+
+    orders.forEach(o => {
+      const d = new Date(o.created_at);
+      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      if (dataMap[dateStr]) {
+        dataMap[dateStr].revenue += (o.total_vc || 0);
+        dataMap[dateStr].orders += 1;
+      }
+    });
+
+    return Object.values(dataMap);
+  }, [orders, timeframe]);
+
+  const userGrowthData = useMemo(() => {
+    if (!users.length) return [];
+    
+    const now = new Date();
+    const dataMap = {};
+    const daysToLookBack = timeframe === '7d' ? 7 : (timeframe === '30d' ? 30 : 90);
+    
+    for (let i = daysToLookBack - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dataMap[dateStr] = { date: dateStr, users: 0 };
+    }
+
+    users.forEach(u => {
+      const d = new Date(u.created_at || Date.now()); // Fallback if no date
+      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      if (dataMap[dateStr]) {
+        dataMap[dateStr].users += 1;
+      }
+    });
+
+    return Object.values(dataMap);
+  }, [users, timeframe]);
 
   useEffect(() => { fetchAll(); }, []);
 
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [pRes, uRes, oRes, hRes, eRes, bRes, cRes, aRes] = await Promise.all([
+      const [pRes, uRes, oRes, cRes] = await Promise.all([
         axios.get(`${API_BASE}/products`),
         axios.get(`${API_BASE}/auth/users`),
         axios.get(`${API_BASE}/orders`),
-        axios.get(`${API_BASE}/hero`),
-        axios.get(`${API_BASE}/events`),
-        axios.get(`${API_BASE}/brands`),
-        axios.get(`${API_BASE}/products/categories`),
-        axios.get(`${API_BASE}/about-image`)
+        axios.get(`${API_BASE}/products/categories`)
       ]);
       setProducts(pRes.data);
       setUsers(uRes.data);
       setOrders(oRes.data);
-      setHero(hRes.data);
-      setEvents(eRes.data);
-      setBrands(bRes.data);
       setCategories(cRes.data);
-      setAboutImage(aRes.data);
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -82,7 +128,6 @@ function Dashboard() {
     setFormData(editing && item ? {
       name: item.name || '', price_vc: item.price_vc || '', 
       original_price: item.original_price || '',
-      brand: item.brand || '',
       delivery_location: item.delivery_location || '',
       delivery_time: item.delivery_time || '',
       description: item.description || '', 
@@ -91,7 +136,7 @@ function Dashboard() {
       image_url: item.image_url || '',
       extra_images: item.extra_images || []
     } : { 
-      name: '', price_vc: '', original_price: '', brand: '', delivery_location: '', delivery_time: '',
+      name: '', price_vc: '', original_price: '', delivery_location: '', delivery_time: '',
       description: '', category: '', title: '', subtitle: '', is_new_arrival: false, image_url: '', extra_images: [] 
     });
     setShowModal(true);
@@ -147,9 +192,7 @@ function Dashboard() {
     });
 
     try {
-      let url = `${API_BASE}/${modalType === 'product' ? 'products' :
-        (modalType === 'hero' ? 'hero' : (modalType === 'event' ? 'events' :
-          (modalType === 'about-image' ? 'about-image' : 'brands')))}`;
+      let url = `${API_BASE}/products`;
       let savedId = editingId;
       if (isEditing) await axios.put(`${url}/${editingId}`, data);
       else {
@@ -208,10 +251,7 @@ function Dashboard() {
           <div className={`sidebar-item ${activeTab === 'categories' ? 'active' : ''}`} onClick={() => setActiveTab('categories')}>
             <Layout size={22} className="icon" /> <span>Categories</span>
           </div>
-          <div className={`sidebar-item ${activeTab === 'content' ? 'active' : ''}`} onClick={() => setActiveTab('content')}>
-            <ImageIcon size={22} className="icon" /> <span>Site Content</span>
-          </div>
-          <div className="sidebar-item logout" style={{ marginTop: 'auto' }}>
+          <div className="sidebar-item logout" style={{ marginTop: 'auto' }} onClick={() => setShowLogoutModal(true)}>
             <LogOut size={22} className="icon" /> <span>Logout</span>
           </div>
         </nav>
@@ -223,35 +263,93 @@ function Dashboard() {
             activeTab === 'products' ? 'Product Management' :
               activeTab === 'orders' ? 'Order History' :
                 activeTab === 'categories' ? 'Category Management' :
-                  activeTab === 'users' ? 'User Management' : 'Site Content Control'}</h1>
+                  activeTab === 'users' ? 'User Management' : 'Admin Panel'}</h1>
           <div style={{ display: 'flex', gap: '1rem' }}>
           </div>
         </div>
 
         {activeTab === 'dashboard' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
-            <div className="dash-card" style={{ marginBottom: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <div><p style={{ color: '#6B7280', margin: 0 }}>Total Sales</p><h2 style={{ margin: '5px 0' }}>{totalVcSales} Vc's</h2></div>
-                <div style={{ background: '#FFFBEB', padding: 12, borderRadius: 12 }}><Coins color="#FFC700" /></div>
+          <div className="dashboard-analytics-v2">
+            {/* Simple Box Cards - REVERTED STYLE */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
+              <div className="dash-card" style={{ marginBottom: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div><p style={{ color: '#6B7280', margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>Total Revenue</p><h2 style={{ margin: '5px 0' }}>{totalVcSales.toLocaleString()} Vc's</h2></div>
+                <div style={{ background: '#FFFBEB', padding: 10, borderRadius: 12 }}><Coins color="#FFC700" size={24} /></div>
+              </div>
+              <div className="dash-card" style={{ marginBottom: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div><p style={{ color: '#6B7280', margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>Total Orders</p><h2 style={{ margin: '5px 0' }}>{orders.length}</h2></div>
+                <div style={{ background: '#F0FDF4', padding: 10, borderRadius: 12 }}><ShoppingBag color="#10B981" size={24} /></div>
+              </div>
+              <div className="dash-card" style={{ marginBottom: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div><p style={{ color: '#6B7280', margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>Active Users</p><h2 style={{ margin: '5px 0' }}>{users.length}</h2></div>
+                <div style={{ background: '#EFF6FF', padding: 10, borderRadius: 12 }}><UserCheck color="#3B82F6" size={24} /></div>
+              </div>
+              <div className="dash-card" style={{ marginBottom: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div><p style={{ color: '#6B7280', margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>Inventory</p><h2 style={{ margin: '5px 0' }}>{products.length}</h2></div>
+                <div style={{ background: '#FEF2F2', padding: 10, borderRadius: 12 }}><Package color="#EF4444" size={24} /></div>
               </div>
             </div>
-            <div className="dash-card" style={{ marginBottom: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <div><p style={{ color: '#6B7280', margin: 0 }}>Active Users</p><h2 style={{ margin: '5px 0' }}>{users.length}</h2></div>
-                <div style={{ background: '#EFF6FF', padding: 12, borderRadius: 12 }}><UserCheck color="#3B82F6" /></div>
-              </div>
+
+            {/* Timeframe Toggles */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', background: '#F3F4F6', padding: '4px', borderRadius: '12px', width: 'fit-content' }}>
+              {['7d', '30d', 'all'].map(t => (
+                <button 
+                  key={t}
+                  onClick={() => setTimeframe(t)}
+                  style={{ 
+                    padding: '6px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                    background: timeframe === t ? '#fff' : 'transparent',
+                    boxShadow: timeframe === t ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                    fontWeight: 700, fontSize: '0.8rem', color: timeframe === t ? '#000' : '#6B7280'
+                  }}
+                >
+                  {t === '7d' ? '7 Days' : (t === '30d' ? '30 Days' : 'Last 3 Months')}
+                </button>
+              ))}
             </div>
-            <div className="dash-card" style={{ marginBottom: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <div><p style={{ color: '#6B7280', margin: 0 }}>Total Orders</p><h2 style={{ margin: '5px 0' }}>{orders.length}</h2></div>
-                <div style={{ background: '#F0FDF4', padding: 12, borderRadius: 12 }}><TrendingUp color="#10B981" /></div>
+
+            {/* Charts Section */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
+              <div className="dash-card" style={{ padding: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>Revenue Trends</h3>
+                  <div style={{ background: '#FFFBEB', color: '#B45309', padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800 }}>VC Points</div>
+                </div>
+                <div style={{ width: '100%', height: 300 }}>
+                  <ResponsiveContainer>
+                    <AreaChart data={salesData}>
+                      <defs>
+                        <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#FFC700" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#FFC700" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#6B7280'}} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#6B7280'}} />
+                      <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} />
+                      <Area type="monotone" dataKey="revenue" stroke="#FFC700" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-            </div>
-            <div className="dash-card" style={{ marginBottom: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <div><p style={{ color: '#6B7280', margin: 0 }}>Inventory</p><h2 style={{ margin: '5px 0' }}>{products.length} Products</h2></div>
-                <div style={{ background: '#FEF2F2', padding: 12, borderRadius: 12 }}><Package color="#EF4444" /></div>
+
+              <div className="dash-card" style={{ padding: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>User Growth</h3>
+                  <div style={{ background: '#EFF6FF', color: '#1D4ED8', padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800 }}>New Users</div>
+                </div>
+                <div style={{ width: '100%', height: 300 }}>
+                  <ResponsiveContainer>
+                    <BarChart data={userGrowthData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#6B7280'}} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#6B7280'}} />
+                      <Tooltip cursor={{fill: '#F9FAFB'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} />
+                      <Bar dataKey="users" fill="#3B82F6" radius={[6, 6, 0, 0]} barSize={25} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
           </div>
@@ -355,76 +453,6 @@ function Dashboard() {
           </div>
         )}
 
-        {activeTab === 'content' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
-            <div className="dash-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                <h3>Hero Slider Images</h3>
-                <button className="btn btn-gold" onClick={() => handleOpenModal('hero')}><ImageIcon size={18} /> Add Hero Image</button>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
-                {hero.map(h => (
-                  <div key={h.id} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden' }}>
-                    <img src={h.image_url} style={{ width: '100%', height: 120, objectFit: 'cover' }} alt="" />
-                    <button onClick={() => deleteItem('hero', h.id)} style={{ position: 'absolute', top: 5, right: 5, background: 'red', border: 'none', color: '#fff', borderRadius: '50%', padding: 5, cursor: 'pointer' }}><Trash2 size={12} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-              <div className="dash-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <h3>Upcoming Event</h3>
-                  <button className="btn btn-gold" onClick={() => handleOpenModal('event')}>Update</button>
-                </div>
-                {events.length > 0 && (
-                  <div style={{ marginTop: '1.5rem', position: 'relative', background: '#f9fafb', padding: '1rem', borderRadius: '8px' }}>
-                    <strong>{events[0].title}</strong><br />{events[0].subtitle}
-                    <button onClick={() => deleteItem('events', events[0].id)} style={{ position: 'absolute', right: 10, top: 10, background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}><Trash2 size={16} /></button>
-                  </div>
-                )}
-              </div>
-              <div className="dash-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <h3>Trusted Brands</h3>
-                  <button className="btn btn-gold" onClick={() => handleOpenModal('brand')}>+ Brand Image</button>
-                </div>
-                <div style={{ display: 'flex', gap: 10, marginTop: '1.5rem', flexWrap: 'wrap' }}>
-                  {brands.map(b => (
-                    <div key={b.id} style={{ padding: 8, border: '1px solid #eee', borderRadius: 8, position: 'relative', background: '#fff' }}>
-                      <img src={b.image_url} height="30" style={{ objectFit: 'contain' }} alt="" />
-                      <button onClick={() => deleteItem('brands', b.id)} style={{ position: 'absolute', top: -5, right: -5, background: 'red', border: 'none', color: '#fff', borderRadius: '50%', padding: 2, cursor: 'pointer' }}><Trash2 size={10} /></button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* About Us Image */}
-            <div className="dash-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                <h3>About Us Image</h3>
-                <button className="btn btn-gold" onClick={() => handleOpenModal('about-image')}>
-                  <ImageIcon size={18} /> {aboutImage ? 'Replace Image' : 'Upload Image'}
-                </button>
-              </div>
-              {aboutImage ? (
-                <div style={{ position: 'relative', display: 'inline-block', borderRadius: 12, overflow: 'hidden' }}>
-                  <img src={aboutImage.image_url} alt="About Us" style={{ width: '100%', maxWidth: 400, height: 220, objectFit: 'cover', borderRadius: 12, display: 'block' }} />
-                  <button
-                    onClick={async () => { if (window.confirm('Remove about image?')) { await axios.delete(`${API_BASE}/about-image`); fetchAll(); } }}
-                    style={{ position: 'absolute', top: 8, right: 8, background: 'red', border: 'none', color: '#fff', borderRadius: '50%', padding: 6, cursor: 'pointer' }}
-                  ><Trash2 size={14} /></button>
-                </div>
-              ) : (
-                <div style={{ padding: '2rem', border: '2px dashed #E5E7EB', borderRadius: 12, textAlign: 'center', color: '#9CA3AF' }}>
-                  No image uploaded yet. Upload one to display it in the About Us section on the user site.
-                </div>
-              )}
-            </div>
-          </div>
-        )}
         {activeTab === 'categories' && (
           <div className="dash-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -529,24 +557,15 @@ function Dashboard() {
               {modalType === 'product' && (
                 <>
                   <div className="form-field">
-                    <label style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '6px', display: 'block' }}>Brand & Product Name</label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '10px' }}>
-                      <input 
-                        type="text" 
-                        placeholder="Brand (e.g. Lucacci)"
-                        value={formData.brand} 
-                        onChange={e => setFormData({...formData, brand: e.target.value})} 
-                        style={{ width: '100%', padding: '10px 14px', borderRadius: '12px', border: '1.5px solid #E5E7EB', fontSize: '0.9rem' }}
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="Product Name"
-                        value={formData.name} 
-                        onChange={e => setFormData({...formData, name: e.target.value})} 
-                        required 
-                        style={{ width: '100%', padding: '10px 14px', borderRadius: '12px', border: '1.5px solid #E5E7EB', fontSize: '0.9rem' }}
-                      />
-                    </div>
+                    <label style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '6px', display: 'block' }}>Product Name</label>
+                    <input 
+                      type="text" 
+                      placeholder="Enter product name"
+                      value={formData.name} 
+                      onChange={e => setFormData({...formData, name: e.target.value})} 
+                      required 
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '12px', border: '1.5px solid #E5E7EB', fontSize: '0.9rem' }}
+                    />
                   </div>
 
                   <div className="form-field">
@@ -793,6 +812,21 @@ function Dashboard() {
                 <button type="submit" className="btn btn-gold" disabled={loading}>{loading ? 'Adjusting...' : 'Confirm'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {showLogoutModal && (
+        <div className="modal-overlay" onClick={() => setShowLogoutModal(false)}>
+          <div className="modal-content" style={{ maxWidth: '400px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <div style={{ background: '#FEF2F2', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+              <LogOut size={30} color="#EF4444" />
+            </div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem' }}>Are you sure?</h2>
+            <p style={{ color: '#6B7280', marginBottom: '2rem' }}>You will need to login again to access the admin panel.</p>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button className="btn" style={{ flex: 1, border: '1px solid #E5E7EB' }} onClick={() => setShowLogoutModal(false)}>No, Stay</button>
+              <button className="btn" style={{ flex: 1, background: '#000', color: '#fff' }} onClick={onLogout}>Yes, Logout</button>
+            </div>
           </div>
         </div>
       )}
