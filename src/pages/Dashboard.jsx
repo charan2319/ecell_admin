@@ -4,7 +4,7 @@ import {
   Package, ShoppingBag, Users, Layout, LogOut, Plus, Edit, Trash2, TrendingUp, Coins, UserCheck, Image as ImageIcon, RefreshCcw
 } from 'lucide-react';
 
-const API_BASE = 'http://localhost:5001/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
 function Dashboard() {
   const [activeTab, setActiveTab] = useState('products');
@@ -112,7 +112,8 @@ function Dashboard() {
       setPointsReason('');
       setAdjustType('add');
       fetchAll();
-    } catch (err) {
+    } catch (error) {
+      console.error('Points adjustment error:', error);
       alert('Failed to adjust points');
     } finally {
       setLoading(false);
@@ -167,7 +168,8 @@ function Dashboard() {
       setNewCategoryName('');
       setExtraImgFiles([]);
       fetchAll();
-    } catch (err) {
+    } catch (error) {
+      console.error('Submit error:', error);
       alert('Operation failed. Please check your data and connection.');
     } finally { setLoading(false); }
   };
@@ -318,7 +320,10 @@ function Dashboard() {
                         try {
                           const res = await axios.get(`${API_BASE}/orders/${o.id}`);
                           setSelectedOrder(res.data);
-                        } catch (err) { alert('Failed to fetch details'); }
+                        } catch (error) { 
+                          console.error('Fetch order details error:', error);
+                          alert('Failed to fetch details'); 
+                        }
                       }} style={{ padding: '4px 12px', fontSize: '0.8rem' }}>View Details</button>
                     </td>
                   </tr>
@@ -436,7 +441,8 @@ function Dashboard() {
                       setLoading(true);
                       await axios.post(`${API_BASE}/products/categories`, { name });
                       fetchAll();
-                    } catch (err) {
+                    } catch (error) {
+                      console.error('Add category error:', error);
                       alert('Failed to add category');
                     } finally {
                       setLoading(false);
@@ -471,7 +477,8 @@ function Dashboard() {
                             setLoading(true);
                             await axios.put(`${API_BASE}/products/categories/${encodeURIComponent(cat)}`, { newName });
                             fetchAll();
-                          } catch (err) {
+                          } catch (error) {
+                            console.error('Rename category error:', error);
                             alert('Failed to rename category');
                           } finally {
                             setLoading(false);
