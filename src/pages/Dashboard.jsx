@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import {
-  Package, ShoppingBag, Users, Layout, LogOut, Plus, Edit, Trash2, TrendingUp, Coins, UserCheck, Image as ImageIcon, RefreshCcw, Calendar, BarChart3, PieChart
+  Package, ShoppingBag, Users, Layout, LogOut, Plus, Edit, Trash2, TrendingUp, Coins, UserCheck, Image as ImageIcon, RefreshCcw, Calendar, BarChart3, PieChart, MapPin, ExternalLink
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend
@@ -140,6 +140,17 @@ function Dashboard({ onLogout }) {
       description: '', category: '', title: '', subtitle: '', is_new_arrival: false, image_url: '', extra_images: [] 
     });
     setShowModal(true);
+  };
+
+  const parseLocationData = (locStr) => {
+    try {
+      const data = JSON.parse(locStr);
+      const address = data.full || `${data.name} ${data.pincode}`.trim();
+      const mapsUrl = (data.lat && data.lon) ? `https://www.google.com/maps?q=${data.lat},${data.lon}` : null;
+      return { address, mapsUrl };
+    } catch (e) {
+      return { address: locStr || 'N/A', mapsUrl: null };
+    }
   };
 
   const handleAdjustPoints = async (e) => {
@@ -401,7 +412,7 @@ function Dashboard({ onLogout }) {
           <div className="dash-card">
             <h2>Order History</h2>
             <table>
-              <thead><tr><th>ID</th><th>User</th><th>Total</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+              <thead><tr><th>ID</th><th>User</th><th>Location</th><th>Total</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
               <tbody>
                 {orders.map(o => (
                   <tr key={o.id}>
@@ -410,10 +421,27 @@ function Dashboard({ onLogout }) {
                       <strong>{o.user_name}</strong><br />
                       <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>{o.email}</span>
                     </td>
+                    <td>
+                      {(() => {
+                        const { address, mapsUrl } = parseLocationData(o.delivery_location);
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ maxWidth: '150px', fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={address}>
+                              {address}
+                            </div>
+                            {mapsUrl && (
+                              <a href={mapsUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3B82F6', display: 'flex' }} title="Open in Google Maps">
+                                <MapPin size={16} />
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td>{o.total_vc} Vc's</td>
                     <td><span style={{ color: '#10B981', fontWeight: 600 }}>{o.status}</span></td>
                     <td>{new Date(o.created_at).toLocaleDateString()}</td>
-                    <td>
+                    <td style={{ display: 'flex', gap: '8px' }}>
                       <button className="btn btn-gold" onClick={async () => {
                         try {
                           const res = await axios.get(`${API_BASE}/orders/${o.id}`);
@@ -423,6 +451,25 @@ function Dashboard({ onLogout }) {
                           alert('Failed to fetch details'); 
                         }
                       }} style={{ padding: '4px 12px', fontSize: '0.8rem' }}>View Details</button>
+                      
+                      {o.status !== 'Delivered' && (
+                        <button 
+                          className="btn" 
+                          style={{ padding: '4px 12px', fontSize: '0.8rem', background: '#10B981', color: '#fff' }}
+                          onClick={async () => {
+                            if (window.confirm('Mark this order as Delivered?')) {
+                              try {
+                                await axios.patch(`${API_BASE}/orders/${o.id}/status`, { status: 'Delivered' });
+                                fetchAll();
+                              } catch (err) {
+                                alert('Failed to update status');
+                              }
+                            }
+                          }}
+                        >
+                          Deliver
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -743,7 +790,26 @@ function Dashboard({ onLogout }) {
               <p><strong>Customer:</strong> {selectedOrder.user_name}</p>
               <p><strong>Email:</strong> {selectedOrder.email}</p>
               <p><strong>Total Amount:</strong> {selectedOrder.total_vc} Vc's</p>
-              <p><strong>Status:</strong> {selectedOrder.status}</p>
+              <p><strong>Status:</strong> <span style={{ color: selectedOrder.status === 'Delivered' ? '#10B981' : '#F59E0B', fontWeight: 700 }}>{selectedOrder.status}</span></p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <p style={{ margin: 0 }}><strong>Delivery Location:</strong></p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '0.9rem', color: '#4B5563' }}>
+                    {parseLocationData(selectedOrder.delivery_location).address}
+                  </p>
+                </div>
+                {parseLocationData(selectedOrder.delivery_location).mapsUrl && (
+                  <a 
+                    href={parseLocationData(selectedOrder.delivery_location).mapsUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="btn" 
+                    style={{ background: '#3B82F6', color: '#fff', fontSize: '0.75rem', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <MapPin size={14} /> View Map <ExternalLink size={12} />
+                  </a>
+                )}
+              </div>
               <p><strong>Placed On:</strong> {new Date(selectedOrder.created_at).toLocaleString()}</p>
             </div>
 
