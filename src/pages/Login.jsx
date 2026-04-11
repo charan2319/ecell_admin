@@ -8,7 +8,7 @@ function Login({ onLogin }) {
   const [error, setError] = useState('');
   const [showForgotModal, setShowForgotModal] = useState(false);
 
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
+  const API_BASE = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api');
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -7,7 +7,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend
 } from 'recharts';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
+const API_BASE = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api');
 
 function Dashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
