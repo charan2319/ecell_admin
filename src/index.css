@@ -411,3 +411,10 @@ td {
   color: #10b981;
   margin-top: 4px;
 }
+
+.coin-icon {
+  height: 1.4em;
+  vertical-align: middle;
+  margin-left: 2px;
+  transform: translateY(-1px);
+}

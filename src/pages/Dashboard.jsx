@@ -6,6 +6,7 @@ import {
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend
 } from 'recharts';
+import coinImg from '../assets/coin.png';
 
 const API_BASE = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api');
 
@@ -284,7 +285,7 @@ function Dashboard({ onLogout }) {
             {/* Simple Box Cards - REVERTED STYLE */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
               <div className="dash-card" style={{ marginBottom: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div><p style={{ color: '#6B7280', margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>Total Revenue</p><h2 style={{ margin: '5px 0' }}>{totalVcSales.toLocaleString()} Vc's</h2></div>
+                <div><p style={{ color: '#6B7280', margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>Total Revenue</p><h2 style={{ margin: '5px 0' }}>{totalVcSales.toLocaleString()} <img src={coinImg} alt="VC" className="coin-icon" /></h2></div>
                 <div style={{ background: '#FFFBEB', padding: 10, borderRadius: 12 }}><Coins color="#FFC700" size={24} /></div>
               </div>
               <div className="dash-card" style={{ marginBottom: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -394,7 +395,7 @@ function Dashboard({ onLogout }) {
                       <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ background: '#F3F4F6', padding: '2px 8px', borderRadius: 12, fontSize: '0.75rem', color: '#374151' }}>{p.category}</span>
-                        <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#FFC700' }}>{p.price_vc} Vc's</span>
+                        <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#FFC700' }}>{p.price_vc} <img src={coinImg} alt="VC" className="coin-icon" /></span>
                       </div>
                       <div style={{ display: 'flex', gap: 8, marginTop: '0.75rem' }}>
                         <button className="btn" style={{ flex: 1, fontSize: '0.8rem', padding: '6px' }} onClick={() => handleOpenModal('product', true, p)}><Edit size={14} /> Edit</button>
@@ -438,7 +439,7 @@ function Dashboard({ onLogout }) {
                         );
                       })()}
                     </td>
-                    <td>{o.total_vc} Vc's</td>
+                    <td>{o.total_vc} <img src={coinImg} alt="VC" className="coin-icon" /></td>
                     <td><span style={{ color: '#10B981', fontWeight: 600 }}>{o.status}</span></td>
                     <td>{new Date(o.created_at).toLocaleDateString()}</td>
                     <td style={{ display: 'flex', gap: '8px' }}>
@@ -488,7 +489,7 @@ function Dashboard({ onLogout }) {
                   <tr key={u.id}>
                     <td><strong>{u.name}</strong></td>
                     <td>{u.email}</td>
-                    <td><strong>{u.points} Vc's</strong></td>
+                    <td><strong>{u.points} <img src={coinImg} alt="VC" className="coin-icon" /></strong></td>
                     <td>{u.is_admin ? 'Admin' : 'Student'}</td>
                     <td>
                       <button className="btn btn-gold" onClick={() => { setSelectedUser(u); setShowPointsModal(true); }} style={{ padding: '4px 12px', fontSize: '0.8rem' }}>Adjust Vc's</button>
@@ -789,7 +790,7 @@ function Dashboard({ onLogout }) {
             <div style={{ background: '#f9fafb', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
               <p><strong>Customer:</strong> {selectedOrder.user_name}</p>
               <p><strong>Email:</strong> {selectedOrder.email}</p>
-              <p><strong>Total Amount:</strong> {selectedOrder.total_vc} Vc's</p>
+              <p><strong>Total Amount:</strong> {selectedOrder.total_vc} <img src={coinImg} alt="VC" className="coin-icon" /></p>
               <p><strong>Status:</strong> <span style={{ color: selectedOrder.status === 'Delivered' ? '#10B981' : '#F59E0B', fontWeight: 700 }}>{selectedOrder.status}</span></p>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
@@ -820,7 +821,7 @@ function Dashboard({ onLogout }) {
                   <img src={item.image_url} alt="" style={{ width: 50, height: 50, borderRadius: 8, objectFit: 'cover' }} />
                   <div style={{ flex: 1 }}>
                     <p style={{ fontWeight: 600, margin: 0 }}>{item.name}</p>
-                    <p style={{ fontSize: '0.85rem', margin: 0 }}>{item.quantity} x {item.price_vc} Vc's</p>
+                    <p style={{ fontSize: '0.85rem', margin: 0 }}>{item.quantity} x {item.price_vc} <img src={coinImg} alt="VC" className="coin-icon" /></p>
                   </div>
                 </div>
               ))}
