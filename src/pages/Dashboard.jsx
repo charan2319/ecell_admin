@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import api from '../api';
 import {
   Package, ShoppingBag, Users, Layout, LogOut, Plus, Edit, Trash2, TrendingUp, Coins, UserCheck, Image as ImageIcon, RefreshCcw, Calendar, BarChart3, PieChart, MapPin, ExternalLink
 } from 'lucide-react';
@@ -103,10 +103,10 @@ function Dashboard({ onLogout }) {
     setLoading(true);
     try {
       const [pRes, uRes, oRes, cRes] = await Promise.all([
-        axios.get(`${API_BASE}/products`),
-        axios.get(`${API_BASE}/auth/users`),
-        axios.get(`${API_BASE}/orders`),
-        axios.get(`${API_BASE}/products/categories`)
+        api.get('/products'),
+        api.get('/auth/users'),
+        api.get('/orders'),
+        api.get('/products/categories')
       ]);
       setProducts(pRes.data);
       setUsers(uRes.data);
@@ -159,7 +159,7 @@ function Dashboard({ onLogout }) {
     setLoading(true);
     try {
       const finalAmount = adjustType === 'add' ? parseInt(pointsAmount) : -Math.abs(parseInt(pointsAmount));
-      await axios.post(`${API_BASE}/auth/adjust-points`, {
+      await api.post('/auth/adjust-points', {
         user_id: selectedUser.id,
         amount: finalAmount,
         reason: pointsReason
@@ -204,19 +204,19 @@ function Dashboard({ onLogout }) {
     });
 
     try {
-      let url = `${API_BASE}/products`;
+      const url = `/${modalType === 'product' ? 'products' : 'auth'}`;
       let savedId = editingId;
-      if (isEditing) await axios.put(`${url}/${editingId}`, data);
+      if (isEditing) await api.put(`${url}/${editingId}`, data);
       else {
-        const res = await axios.post(url, data);
-        savedId = res.data.id;
+        const res = await api.post(url, data);
+        savedId = res.data.id || res.data.product?.id;
       }
 
       // Upload extra images if any (products only)
       if (modalType === 'product' && extraImgFiles.length > 0 && savedId) {
         const extraData = new FormData();
         extraImgFiles.forEach(f => extraData.append('images', f));
-        await axios.post(`${API_BASE}/products/${savedId}/images`, extraData);
+        await api.post(`/products/${savedId}/images`, extraData);
       }
 
       setShowModal(false);
@@ -226,13 +226,15 @@ function Dashboard({ onLogout }) {
     } catch (error) {
       console.error('Submit error:', error);
       alert('Operation failed. Please check your data and connection.');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deleteItem = async (type, id) => {
     if (!window.confirm(`Delete this ${type}?`)) return;
     try {
-      await axios.delete(`${API_BASE}/${type}/${id}`);
+      await api.delete(`/${type}/${id}`);
       fetchAll();
     } catch (err) {
       console.error('Delete error for', type, id, ':', err);
@@ -445,7 +447,7 @@ function Dashboard({ onLogout }) {
                     <td style={{ display: 'flex', gap: '8px' }}>
                       <button className="btn btn-gold" onClick={async () => {
                         try {
-                          const res = await axios.get(`${API_BASE}/orders/${o.id}`);
+                          const res = await api.get(`/orders/${o.id}`);
                           setSelectedOrder(res.data);
                         } catch (error) { 
                           console.error('Fetch order details error:', error);
@@ -460,7 +462,7 @@ function Dashboard({ onLogout }) {
                           onClick={async () => {
                             if (window.confirm('Mark this order as Delivered?')) {
                               try {
-                                await axios.patch(`${API_BASE}/orders/${o.id}/status`, { status: 'Delivered' });
+                                await api.patch(`/orders/${o.id}/status`, { status: 'Delivered' });
                                 fetchAll();
                               } catch (err) {
                                 alert('Failed to update status');
@@ -515,7 +517,7 @@ function Dashboard({ onLogout }) {
                   if (name) {
                     try {
                       setLoading(true);
-                      await axios.post(`${API_BASE}/products/categories`, { name });
+                      await api.post('/products/categories', { name });
                       fetchAll();
                     } catch (error) {
                       console.error('Add category error:', error);
@@ -551,7 +553,7 @@ function Dashboard({ onLogout }) {
                         if (newName && newName !== cat) {
                           try {
                             setLoading(true);
-                            await axios.put(`${API_BASE}/products/categories/${encodeURIComponent(cat)}`, { newName });
+                            await api.put(`/products/categories/${encodeURIComponent(cat)}`, { newName });
                             fetchAll();
                           } catch (error) {
                             console.error('Rename category error:', error);
@@ -571,7 +573,7 @@ function Dashboard({ onLogout }) {
                         if (window.confirm(`Delete category "${cat}"?`)) {
                           try {
                             setLoading(true);
-                            await axios.delete(`${API_BASE}/products/categories/${encodeURIComponent(cat)}`);
+                            await api.delete(`/products/categories/${encodeURIComponent(cat)}`);
                             fetchAll();
                           } catch (err) {
                             alert(err.response?.data?.message || 'Failed to delete category');
@@ -745,7 +747,7 @@ function Dashboard({ onLogout }) {
                           <button
                             type="button"
                             onClick={async () => {
-                              await axios.delete(`${API_BASE}/products/images/${img.id}`);
+                              await api.delete(`/products/images/${img.id}`);
                               setFormData(prev => ({
                                 ...prev,
                                 extra_images: prev.extra_images.filter(i => i.id !== img.id)

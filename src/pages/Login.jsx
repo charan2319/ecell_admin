@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 import './Login.css';
 
 function Login({ onLogin }) {
@@ -8,12 +8,11 @@ function Login({ onLogin }) {
   const [error, setError] = useState('');
   const [showForgotModal, setShowForgotModal] = useState(false);
 
-  const API_BASE = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post(`${API_BASE}/auth/admin/login`, { email, password });
+      const res = await api.post('/auth/admin/login', { email, password });
       if (res.data.success) {
         localStorage.setItem('adminToken', res.data.token);
         onLogin();
