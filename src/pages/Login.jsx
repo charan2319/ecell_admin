@@ -15,6 +15,7 @@ function Login({ onLogin }) {
     try {
       const res = await axios.post(`${API_BASE}/auth/admin/login`, { email, password });
       if (res.data.success) {
+        localStorage.setItem('adminToken', res.data.token);
         onLogin();
       }
     } catch (err) {
