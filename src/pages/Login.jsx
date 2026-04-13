@@ -12,7 +12,8 @@ function Login({ onLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await api.post('/auth/admin/login', { email, password });
+      const trimmedEmail = email.trim();
+      const res = await api.post('/auth/admin/login', { email: trimmedEmail, password });
       if (res.data.success) {
         localStorage.setItem('adminToken', res.data.token);
         onLogin();
