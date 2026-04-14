@@ -251,6 +251,28 @@ function Dashboard({ onLogout }) {
     }
   };
 
+  // Clear All Products
+  const handleClearAllProducts = async () => {
+    const count = products.length;
+    if (count === 0) { alert('No products to clear.'); return; }
+    const confirmed = window.confirm(`⚠️ DANGER: You are about to delete ALL ${count} products.\n\nThis will also remove associated order items and product images.\n\nThis action is IRREVERSIBLE. Are you sure?`);
+    if (!confirmed) return;
+    const doubleConfirm = window.confirm(`Final confirmation: Delete ALL ${count} products permanently?`);
+    if (!doubleConfirm) return;
+    
+    setLoading(true);
+    try {
+      const res = await api.delete('/products/clear-all/confirm');
+      alert(res.data.message || 'All products deleted.');
+      fetchAll();
+    } catch (err) {
+      console.error('Clear all error:', err);
+      alert('Failed to clear products: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const totalVcSales = orders.reduce((acc, curr) => acc + (curr.total_vc || 0), 0);
 
   return (
@@ -380,9 +402,21 @@ function Dashboard({ onLogout }) {
 
         {activeTab === 'products' && (
           <div className="dash-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
               <h2>Active Inventory <span style={{ fontSize: '0.9rem', color: '#6B7280', fontWeight: 400 }}>({products.length} items)</span></h2>
-              <button className="btn btn-gold" onClick={() => handleOpenModal('product')}><Plus size={18} /> Add Product</button>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                {products.length > 0 && (
+                  <button 
+                    className="btn" 
+                    onClick={handleClearAllProducts}
+                    style={{ background: '#EF4444', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '0.85rem' }}
+                    disabled={loading}
+                  >
+                    <Trash2 size={16} /> Clear All
+                  </button>
+                )}
+                <button className="btn btn-gold" onClick={() => handleOpenModal('product')}><Plus size={18} /> Add Product</button>
+              </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.25rem' }}>
               {products.map(p => {
@@ -749,20 +783,33 @@ function Dashboard({ onLogout }) {
 
                   {/* Show existing extra images when editing */}
                   {isEditing && formData.extra_images && formData.extra_images.length > 0 && (
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
                       {formData.extra_images.map(img => (
-                        <div key={img.id} style={{ position: 'relative' }}>
-                          <img src={img.image_url} alt="" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8, border: '2px solid #E5E7EB' }} />
+                        <div key={img.id} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                          <img src={img.image_url} alt="" style={{ width: 70, height: 70, objectFit: 'cover', borderRadius: 8, border: '2px solid #E5E7EB' }} />
                           <button
                             type="button"
                             onClick={async () => {
-                              await api.delete(`/products/images/${img.id}`);
-                              setFormData(prev => ({
-                                ...prev,
-                                extra_images: prev.extra_images.filter(i => i.id !== img.id)
-                              }));
+                              try {
+                                await api.put(`/products/${editingId}/promote-image/${img.id}`);
+                                const res = await api.get(`/products/${editingId}`);
+                                setFormData(res.data);
+                              } catch(err) { alert('Failed to make main image'); }
                             }}
-                            style={{ position: 'absolute', top: -5, right: -5, background: 'red', border: 'none', color: '#fff', borderRadius: '50%', width: 18, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            style={{ background: '#10B981', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '0.65rem', padding: '4px 8px', cursor: 'pointer', fontWeight: 600 }}
+                          >Make Main</button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await api.delete(`/products/images/${img.id}`);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  extra_images: prev.extra_images.filter(i => i.id !== img.id)
+                                }));
+                              } catch(err) { alert('Failed to delete image'); }
+                            }}
+                            style={{ position: 'absolute', top: -6, right: -6, background: '#EF4444', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           >✕</button>
                         </div>
                       ))}
