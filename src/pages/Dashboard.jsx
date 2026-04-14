@@ -197,11 +197,20 @@ function Dashboard({ onLogout }) {
     const catToSave = showNewCategoryInput ? newCategoryName : formData.category;
     const finalFormData = { ...formData, category: catToSave || formData.category };
 
+    // Fields to skip when appending to FormData (non-serializable or handled separately)
+    const skipFields = ['extra_images', 'image_url', 'title', 'subtitle'];
+
     Object.keys(finalFormData).forEach(key => {
-      if (finalFormData[key] !== undefined && finalFormData[key] !== null) {
+      if (skipFields.includes(key)) return;
+      if (finalFormData[key] !== undefined && finalFormData[key] !== null && finalFormData[key] !== '') {
         data.append(key, finalFormData[key]);
       }
     });
+
+    // If editing and no new file was selected, preserve the existing image URL
+    if (isEditing && !file && formData.image_url) {
+      data.append('image_url', formData.image_url);
+    }
 
     try {
       const url = `/${modalType === 'product' ? 'products' : 'auth'}`;

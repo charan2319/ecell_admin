@@ -14,9 +14,11 @@ function Login({ onLogin }) {
     try {
       const trimmedEmail = email.trim();
       const res = await api.post('/auth/admin/login', { email: trimmedEmail, password });
-      if (res.data.success) {
+      if (res.data.success && res.data.token) {
         localStorage.setItem('adminToken', res.data.token);
         onLogin();
+      } else if (res.data.success && !res.data.token) {
+        setError('Login succeeded but no security token was received. Please contact support.');
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid email or password');
