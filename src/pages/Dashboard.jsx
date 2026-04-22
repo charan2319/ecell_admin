@@ -437,7 +437,7 @@ function Dashboard({ onLogout }) {
                     </div>
                     {/* Info */}
                     <div style={{ padding: '0.85rem 1rem' }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name?.replace(/\bHp\b/g, 'HP')}</div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ background: '#F3F4F6', padding: '2px 8px', borderRadius: 12, fontSize: '0.75rem', color: '#374151' }}>{p.category}</span>
                         <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#FFC700' }}>{p.price_vc} <img src={coinImg} alt="VC" className="coin-icon" /></span>
@@ -878,7 +878,7 @@ function Dashboard({ onLogout }) {
                 <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem', borderBottom: '1px solid #eee' }}>
                   <img src={item.image_url} alt="" style={{ width: 50, height: 50, borderRadius: 8, objectFit: 'cover' }} />
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontWeight: 600, margin: 0 }}>{item.name}</p>
+                    <p style={{ fontWeight: 600, margin: 0 }}>{item.name?.replace(/\bHp\b/g, 'HP')}</p>
                     <p style={{ fontSize: '0.85rem', margin: 0 }}>{item.quantity} x {item.price_vc} <img src={coinImg} alt="VC" className="coin-icon" /></p>
                   </div>
                 </div>
