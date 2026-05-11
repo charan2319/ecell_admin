@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api';
 import {
-  Package, ShoppingBag, Users, Layout, LogOut, Plus, Edit, Trash2, TrendingUp, Coins, UserCheck, Image as ImageIcon, RefreshCcw, Calendar, BarChart3, PieChart, MapPin, ExternalLink
+  Package, ShoppingBag, Users, Layout, LogOut, Plus, Edit, Trash2, TrendingUp, Coins, UserCheck, Image as ImageIcon, RefreshCcw, Calendar, MapPin, ExternalLink
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend
@@ -42,60 +42,62 @@ function Dashboard({ onLogout }) {
   const [extraImgFiles, setExtraImgFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [timeframe, setTimeframe] = useState('7d'); // '7d', '30d', 'all'
+  const [timeframe, setTimeframe] = useState('7d'); // 7d, 30d, all
+  
+  const safeOrders = Array.isArray(orders) ? orders : [];
+  const safeUsers = Array.isArray(users) ? users : [];
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
 
   // Data processing for charts
   const salesData = useMemo(() => {
-    if (!orders.length) return [];
+    if (!safeOrders.length) return [];
     
     const now = new Date();
     const dataMap = {};
-    
-    // Initialize last 7 days or 30 days
-    const daysToLookBack = timeframe === '7d' ? 7 : (timeframe === '30d' ? 30 : 90);
-    for (let i = daysToLookBack - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(now.getDate() - i);
+    const days = timeframe === '7d' ? 7 : (timeframe === '30d' ? 30 : 90);
+
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
       const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       dataMap[dateStr] = { date: dateStr, revenue: 0, orders: 0 };
     }
 
-    orders.forEach(o => {
+    safeOrders.forEach(o => {
       const d = new Date(o.created_at);
       const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       if (dataMap[dateStr]) {
-        dataMap[dateStr].revenue += (o.total_vc || 0);
+        dataMap[dateStr].revenue += (Number(o.total_vc) || 0);
         dataMap[dateStr].orders += 1;
       }
     });
-
     return Object.values(dataMap);
-  }, [orders, timeframe]);
+  }, [safeOrders, timeframe]);
 
   const userGrowthData = useMemo(() => {
-    if (!users.length) return [];
+    if (!safeUsers.length) return [];
     
     const now = new Date();
     const dataMap = {};
-    const daysToLookBack = timeframe === '7d' ? 7 : (timeframe === '30d' ? 30 : 90);
-    
-    for (let i = daysToLookBack - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(now.getDate() - i);
+    const days = timeframe === '7d' ? 7 : (timeframe === '30d' ? 30 : 90);
+
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
       const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       dataMap[dateStr] = { date: dateStr, users: 0 };
     }
 
-    users.forEach(u => {
+    safeUsers.forEach(u => {
       const d = new Date(u.created_at || Date.now()); // Fallback if no date
       const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       if (dataMap[dateStr]) {
         dataMap[dateStr].users += 1;
       }
     });
-
     return Object.values(dataMap);
-  }, [users, timeframe]);
+  }, [safeUsers, timeframe]);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -144,10 +146,22 @@ function Dashboard({ onLogout }) {
   };
 
   const parseLocationData = (locStr) => {
+    if (!locStr || locStr === 'Not Specified') return { address: 'Not Specified', mapsUrl: null };
     try {
       const data = JSON.parse(locStr);
-      const address = data.full || `${data.name} ${data.pincode}`.trim();
-      const mapsUrl = (data.lat && data.lon) ? `https://www.google.com/maps?q=${data.lat},${data.lon}` : null;
+      if (typeof data === 'string') return { address: data, mapsUrl: null };
+      
+      // Saved address format: { name, phone, house, area, city, state, pincode, type }
+      // GPS format: { name, pincode, lat, lon, full }
+      let address;
+      if (data && data.house) {
+        address = `${data.name} — ${data.house}, ${data.area}, ${data.city}, ${data.state} - ${data.pincode}`;
+      } else if (data) {
+        address = data.full || `${data.name || ''} ${data.pincode || ''}`.trim() || 'Location Details';
+      } else {
+        address = 'N/A';
+      }
+      const mapsUrl = (data && data.lat && data.lon) ? `https://www.google.com/maps?q=${data.lat},${data.lon}` : null;
       return { address, mapsUrl };
     } catch (e) {
       return { address: locStr || 'N/A', mapsUrl: null };
@@ -273,7 +287,7 @@ function Dashboard({ onLogout }) {
     }
   };
 
-  const totalVcSales = orders.reduce((acc, curr) => acc + (curr.total_vc || 0), 0);
+  const totalVcSales = safeOrders.reduce((acc, curr) => acc + (Number(curr.total_vc) || 0), 0);
 
   return (
     <div className="admin-layout">
@@ -361,7 +375,7 @@ function Dashboard({ onLogout }) {
                   <div style={{ background: '#FFFBEB', color: '#B45309', padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800 }}>VC Points</div>
                 </div>
                 <div style={{ width: '100%', height: 300 }}>
-                  <ResponsiveContainer>
+                  <ResponsiveContainer width="100%" height={300}>
                     <AreaChart data={salesData}>
                       <defs>
                         <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -385,7 +399,7 @@ function Dashboard({ onLogout }) {
                   <div style={{ background: '#EFF6FF', color: '#1D4ED8', padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800 }}>New Users</div>
                 </div>
                 <div style={{ width: '100%', height: 300 }}>
-                  <ResponsiveContainer>
+                  <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={userGrowthData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                       <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#6B7280'}} />
@@ -403,9 +417,9 @@ function Dashboard({ onLogout }) {
         {activeTab === 'products' && (
           <div className="dash-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-              <h2>Active Inventory <span style={{ fontSize: '0.9rem', color: '#6B7280', fontWeight: 400 }}>({products.length} items)</span></h2>
+              <h2>Active Inventory <span style={{ fontSize: '0.9rem', color: '#6B7280', fontWeight: 400 }}>({safeProducts.length} items)</span></h2>
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                {products.length > 0 && (
+                {safeProducts.length > 0 && (
                   <button 
                     className="btn" 
                     onClick={handleClearAllProducts}
@@ -419,7 +433,7 @@ function Dashboard({ onLogout }) {
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.25rem' }}>
-              {products.map(p => {
+              {safeProducts.map(p => {
                 const allImgs = [p.image_url, ...(p.extra_images || []).map(i => i.image_url)].filter(Boolean);
                 return (
                   <div key={p.id} style={{ background: '#F9FAFB', borderRadius: 16, overflow: 'hidden', border: '1.5px solid #E5E7EB', transition: 'box-shadow 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -460,7 +474,7 @@ function Dashboard({ onLogout }) {
             <table>
               <thead><tr><th>ID</th><th>User</th><th>Location</th><th>Total</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
               <tbody>
-                {orders.map(o => (
+                {safeOrders.map(o => (
                   <tr key={o.id}>
                     <td>#{o.id}</td>
                     <td>
@@ -530,7 +544,7 @@ function Dashboard({ onLogout }) {
             <table>
               <thead><tr><th>Name</th><th>Email</th><th>Balance</th><th>Role</th><th>Actions</th></tr></thead>
               <tbody>
-                {users.map(u => (
+                {safeUsers.map(u => (
                   <tr key={u.id}>
                     <td><strong>{u.name}</strong></td>
                     <td>{u.email}</td>
@@ -576,7 +590,7 @@ function Dashboard({ onLogout }) {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-              {categories.map(cat => (
+              {safeCategories.map(cat => (
                 <div key={cat} style={{
                   background: '#F9FAFB',
                   padding: '1.25rem',
@@ -631,7 +645,7 @@ function Dashboard({ onLogout }) {
                   </div>
                 </div>
               ))}
-              {categories.length === 0 && (
+              {safeCategories.length === 0 && (
                 <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '3rem', color: '#9CA3AF' }}>
                   No categories found. Add your first product to create a category!
                 </div>
@@ -711,7 +725,7 @@ function Dashboard({ onLogout }) {
                       style={{ width: '100%', padding: '10px 14px', borderRadius: '12px', border: '1.5px solid #E5E7EB', fontSize: '0.9rem', background: '#fff' }}
                     >
                       <option value="">Select Category</option>
-                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                      {safeCategories.map(c => <option key={c} value={c}>{c}</option>)}
                       <option value="ADD_NEW">+ Add New Category</option>
                     </select>
                   </div>
