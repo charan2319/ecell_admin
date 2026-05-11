@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import coinImg from '../assets/coin.png';
 
-const API_BASE = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api');
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 function Dashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
