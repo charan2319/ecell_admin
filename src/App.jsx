@@ -5,8 +5,10 @@ import Login from './pages/Login';
 import './index.css';
 
 function App() {
+  // Guard on the actual JWT token — not just a spoofable boolean flag
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return localStorage.getItem('isAdminLoggedIn') === 'true';
+    const token = localStorage.getItem('adminToken');
+    return !!(token && token !== 'undefined' && token !== 'null');
   });
 
   const handleLogin = () => {
